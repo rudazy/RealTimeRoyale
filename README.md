@@ -242,11 +242,56 @@ result = gl.eq_principle_prompt_non_comparative(
 - [x] Weather challenges
 - [x] News/Trending challenges (AI judged)
 - [x] Leaderboard system
-- [ ] Frontend (Next.js)
+- [x] Frontend (Next.js)
+- [x] UI Components
+- [x] State management (Zustand)
 - [ ] Real-time updates (WebSocket)
 - [ ] Weekly challenge rotation
 - [ ] Seasonal events
 - [ ] Tournament mode
+
+## Quick Start
+
+### 1. Install Dependencies
+```bash
+# Root dependencies
+npm install
+
+# Frontend dependencies
+cd frontend
+npm install
+cd ..
+```
+
+### 2. Deploy the Contract
+```bash
+# Set up GenLayer CLI
+npm install -g genlayer
+
+# Configure network
+genlayer network
+
+# Deploy to testnet
+genlayer deploy
+```
+
+### 3. Configure Frontend
+```bash
+cd frontend
+copy .env.example .env
+```
+
+Edit `.env` and add your deployed contract address:
+```
+NEXT_PUBLIC_CONTRACT_ADDRESS=your_contract_address_here
+```
+
+### 4. Run the Frontend
+```bash
+npm run dev
+```
+
+Open http://localhost:3000 in your browser.
 
 ## Contributing
 
