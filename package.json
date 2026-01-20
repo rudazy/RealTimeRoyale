@@ -1,0 +1,33 @@
+{
+  "name": "real-time-royale",
+  "version": "1.0.0",
+  "description": "A multiplayer game where players compete by reacting to LIVE real-world data fetched on-chain",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "genlayer deploy",
+    "deploy:local": "GENLAYER_NETWORK=localnet genlayer deploy",
+    "deploy:studio": "GENLAYER_NETWORK=studionet genlayer deploy",
+    "deploy:testnet": "GENLAYER_NETWORK=testnet-asimov genlayer deploy",
+    "test": "gltest",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "genlayer",
+    "intelligent-contracts",
+    "blockchain",
+    "game",
+    "multiplayer",
+    "web3"
+  ],
+  "author": "rudazy",
+  "license": "MIT",
+  "dependencies": {
+    "genlayer": "^0.1.0",
+    "genlayer-js": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
