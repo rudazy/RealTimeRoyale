@@ -5,3 +5,6 @@ export { RoundResults } from "./RoundResults";
 export { Challenge } from "./Challenge";
 export { GameModeCard, GameModesList } from "./GameModeCard";
 export { WaitingRoom } from "./WaitingRoom";
+export { Lobby } from "./Lobby";
+export { Leaderboard } from "./Leaderboard";
+export { Header } from "./Header";
