@@ -1,11 +1,11 @@
 "use client";
 
-import { Users, Crown, Play, Loader2, Copy, Check, ArrowLeft } from "lucide-react";
+import { Users, Crown, Play, Loader2, Copy, Check, ArrowLeft, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddressDisplay } from "./AddressDisplay";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { useGameState, useStartGame } from "@/lib/hooks/useRealTimeRoyale";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface RoomLobbyProps {
   roomId: string;
@@ -15,9 +15,15 @@ interface RoomLobbyProps {
 
 export function RoomLobby({ roomId, onGameStart, onLeave }: RoomLobbyProps) {
   const { address } = useWallet();
-  const { room, isHost, playerCount, isLoadingRoom } = useGameState(roomId);
+  const { room, isHost, playerCount, isLoadingRoom, refetchRoom } = useGameState(roomId);
   const { startGameAsync, isStarting } = useStartGame();
   const [copied, setCopied] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Log for debugging
+  useEffect(() => {
+    console.log("RoomLobby: roomId =", roomId, "room =", room, "isLoading =", isLoadingRoom);
+  }, [roomId, room, isLoadingRoom]);
 
   const handleCopyRoomId = () => {
     navigator.clipboard.writeText(roomId);
@@ -34,23 +40,40 @@ export function RoomLobby({ roomId, onGameStart, onLeave }: RoomLobbyProps) {
     }
   };
 
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    refetchRoom();
+  };
+
   if (isLoadingRoom) {
     return (
-      <div className="brand-card p-8 text-center">
+      <div className="brand-card p-8 text-center max-w-2xl mx-auto">
         <Loader2 className="w-8 h-8 animate-spin mx-auto text-accent" />
-        <p className="mt-4 text-muted-foreground">Loading room...</p>
+        <p className="mt-4 text-muted-foreground">Loading room {roomId}...</p>
       </div>
     );
   }
 
   if (!room) {
     return (
-      <div className="brand-card p-8 text-center">
-        <p className="text-destructive">Room not found</p>
-        <Button variant="outline" className="mt-4" onClick={onLeave}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Button>
+      <div className="brand-card p-8 text-center max-w-2xl mx-auto">
+        <p className="text-destructive text-lg mb-2">Room not found</p>
+        <p className="text-sm text-muted-foreground mb-4">
+          Room ID: <code className="bg-secondary/50 px-2 py-1 rounded">{roomId}</code>
+        </p>
+        <p className="text-xs text-muted-foreground mb-4">
+          The room may not exist yet or there might be a network delay. Try refreshing.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={handleRetry}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry ({retryCount})
+          </Button>
+          <Button variant="outline" onClick={onLeave}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+        </div>
       </div>
     );
   }

@@ -39,11 +39,15 @@ export function useRoom(roomId: string | null) {
 
   return useQuery<Room | null, Error>({
     queryKey: ["room", roomId],
-    queryFn: () => {
+    queryFn: async () => {
       if (!contract || !roomId) {
-        return Promise.resolve(null);
+        console.log("useRoom: No contract or roomId", { contract: !!contract, roomId });
+        return null;
       }
-      return contract.getRoom(roomId);
+      console.log("useRoom: Fetching room with ID:", roomId);
+      const room = await contract.getRoom(roomId);
+      console.log("useRoom: Got room data:", room);
+      return room;
     },
     refetchOnWindowFocus: true,
     refetchInterval: 3000, // Poll every 3 seconds for real-time updates
@@ -110,10 +114,14 @@ export function useCreateRoom() {
         throw new Error("Wallet not connected.");
       }
       setIsCreating(true);
-      return contract.createRoom();
+      const result = await contract.createRoom();
+      console.log("Create room result:", result);
+      return result;
     },
     onSuccess: (data) => {
+      console.log("Room created successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["room"] });
+      queryClient.invalidateQueries({ queryKey: ["room", data.roomId] });
       setIsCreating(false);
       success("Room created!", {
         description: `Room ID: ${data.roomId}`,
@@ -153,14 +161,18 @@ export function useJoinRoom() {
       if (!address) {
         throw new Error("Wallet not connected.");
       }
+      console.log("useJoinRoom: Joining room:", roomId);
       setIsJoining(true);
-      return contract.joinRoom(roomId);
+      const result = await contract.joinRoom(roomId);
+      console.log("useJoinRoom: Join result:", result);
+      return { receipt: result, roomId };
     },
-    onSuccess: (_, roomId) => {
-      queryClient.invalidateQueries({ queryKey: ["room", roomId] });
+    onSuccess: (data) => {
+      console.log("useJoinRoom: Successfully joined room:", data.roomId);
+      queryClient.invalidateQueries({ queryKey: ["room", data.roomId] });
       setIsJoining(false);
       success("Joined room!", {
-        description: "You have joined the game room.",
+        description: `You have joined ${data.roomId}`,
       });
     },
     onError: (err: any) => {

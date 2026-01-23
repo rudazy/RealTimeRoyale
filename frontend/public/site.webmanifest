@@ -1,15 +1,20 @@
 {
-  "name": "GenLayer Football Market",
-  "short_name": "GenLayer Market",
-  "description": "AI-powered football match predictions on GenLayer blockchain",
+  "name": "Real Time Royale",
+  "short_name": "RTR",
+  "description": "Compete in real-time multiplayer challenges on GenLayer. Guess live crypto prices, earn XP, climb the leaderboard!",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#9B6AF6",
+  "theme_color": "#8B5CF6",
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
       "type": "image/svg+xml"
     }
   ]

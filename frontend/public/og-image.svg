@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0f;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a0f;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FBBF24;stop-opacity:1" />
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  
+  <!-- Decorative elements -->
+  <circle cx="100" cy="100" r="200" fill="#8B5CF6" opacity="0.1"/>
+  <circle cx="1100" cy="530" r="250" fill="#EC4899" opacity="0.1"/>
+  
+  <!-- Crown icon -->
+  <g transform="translate(500, 120)" filter="url(#glow)">
+    <path d="M0 140h200v20H0v-20z" fill="url(#goldGrad)"/>
+    <path d="M10 40l40 70 50-50 50 50 40-70v100H10V40z" fill="url(#goldGrad)"/>
+    <circle cx="10" cy="30" r="20" fill="url(#goldGrad)"/>
+    <circle cx="100" cy="10" r="20" fill="url(#goldGrad)"/>
+    <circle cx="190" cy="30" r="20" fill="url(#goldGrad)"/>
+  </g>
+  
+  <!-- Title: "Real Time" -->
+  <text x="600" y="350" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="80" font-weight="bold" fill="url(#purpleGrad)">Real Time</text>
+  
+  <!-- Title: "Royale" -->
+  <text x="600" y="440" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="80" font-weight="bold" fill="url(#goldGrad)">Royale</text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#9CA3AF">Compete in Real-Time on GenLayer Blockchain</text>
+  
+  <!-- Bottom tag -->
+  <rect x="450" y="560" width="300" height="40" rx="20" fill="#8B5CF6" opacity="0.3"/>
+  <text x="600" y="588" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#E9D5FF">Powered by GenLayer AI</text>
+</svg>

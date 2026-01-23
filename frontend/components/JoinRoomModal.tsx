@@ -26,13 +26,17 @@ export function JoinRoomModal({ onRoomJoined }: JoinRoomModalProps) {
   const { joinRoomAsync, isJoining } = useJoinRoom();
 
   const handleJoinRoom = async () => {
-    if (!roomId.trim()) return;
+    const trimmedRoomId = roomId.trim();
+    if (!trimmedRoomId) return;
 
     try {
-      await joinRoomAsync(roomId.trim());
+      console.log("JoinRoomModal: Attempting to join room:", trimmedRoomId);
+      const result = await joinRoomAsync(trimmedRoomId);
+      console.log("JoinRoomModal: Join successful, result:", result);
       setOpen(false);
       setRoomId("");
-      onRoomJoined?.(roomId.trim());
+      // Pass the room ID from the result to ensure consistency
+      onRoomJoined?.(result.roomId || trimmedRoomId);
     } catch (err) {
       console.error("Error joining room:", err);
     }

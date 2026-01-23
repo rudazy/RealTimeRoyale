@@ -50,17 +50,23 @@ class RealTimeRoyale {
    */
   async getRoom(roomId: string): Promise<Room | null> {
     try {
+      console.log("getRoom: Calling contract with roomId:", roomId);
       const roomJson: any = await this.client.readContract({
         address: this.contractAddress,
         functionName: "get_room",
         args: [roomId],
       });
 
-      if (!roomJson || roomJson === "{}") {
+      console.log("getRoom: Raw response:", roomJson);
+
+      if (!roomJson || roomJson === "{}" || roomJson === "") {
+        console.log("getRoom: Room not found or empty");
         return null;
       }
 
-      return JSON.parse(roomJson) as Room;
+      const room = JSON.parse(roomJson) as Room;
+      console.log("getRoom: Parsed room:", room);
+      return room;
     } catch (error) {
       console.error("Error fetching room:", error);
       return null;
@@ -152,13 +158,82 @@ class RealTimeRoyale {
         interval: 5000,
       });
 
-      // Extract room_id from receipt or decode from transaction
-      // The contract returns the room_id string
-      const roomId = (receipt as any).result || (receipt as any).decoded_data || "";
+      // Log the full receipt for debugging
+      console.log("Create room receipt:", JSON.stringify(receipt, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      , 2));
+
+      // Extract room_id from receipt
+      // GenLayer SDK returns the execution result in the receipt
+      let roomId = "";
+      const receiptData = receipt as any;
+
+      // Helper function to extract room_id from various formats
+      const extractRoomId = (value: any): string => {
+        if (!value) return "";
+        if (typeof value === "string") {
+          // Direct string like "room_7"
+          if (value.startsWith("room_")) return value;
+          // Try to parse as JSON
+          try {
+            const parsed = JSON.parse(value);
+            if (typeof parsed === "string" && parsed.startsWith("room_")) return parsed;
+            if (parsed?.room_id) return parsed.room_id;
+          } catch {
+            // Not JSON, return as-is if it looks like a room ID
+          }
+          return value;
+        }
+        if (typeof value === "object") {
+          if (value.room_id) return value.room_id;
+          if (value.result) return extractRoomId(value.result);
+        }
+        return String(value);
+      };
+
+      // Try different possible locations for the return value
+      // The GenLayer SDK may return the result in different fields depending on version
+      const possibleSources = [
+        receiptData.result,
+        receiptData.data?.result,
+        receiptData.decoded_data,
+        receiptData.execution_result,
+        receiptData.return_value,
+        receiptData.output,
+        receiptData.data?.decoded_data,
+        receiptData.data?.execution_result,
+      ];
+
+      for (const source of possibleSources) {
+        const extracted = extractRoomId(source);
+        if (extracted && extracted.startsWith("room_")) {
+          roomId = extracted;
+          break;
+        }
+      }
+
+      // If we still don't have a valid room ID, check if there's any string starting with "room_"
+      // in the stringified receipt
+      if (!roomId || !roomId.startsWith("room_")) {
+        const receiptStr = JSON.stringify(receipt);
+        const match = receiptStr.match(/"(room_\d+)"/);
+        if (match) {
+          roomId = match[1];
+          console.log("Extracted room ID from receipt string:", roomId);
+        }
+      }
+
+      // Validate room ID format (should be like "room_7")
+      if (!roomId || !roomId.startsWith("room_")) {
+        console.error("Could not extract valid room ID from receipt:", receipt);
+        throw new Error("Failed to get room ID from contract response");
+      }
+
+      console.log("Final room ID:", roomId);
 
       return {
         receipt: receipt as TransactionReceipt,
-        roomId: typeof roomId === "string" ? roomId : String(roomId)
+        roomId: roomId
       };
     } catch (error) {
       console.error("Error creating room:", error);
