@@ -151,6 +151,8 @@ class RealTimeRoyale {
         value: BigInt(0),
       });
 
+      console.log("Create room txHash:", txHash);
+
       const receipt = await this.client.waitForTransactionReceipt({
         hash: txHash,
         status: "ACCEPTED" as any,
@@ -158,86 +160,139 @@ class RealTimeRoyale {
         interval: 5000,
       });
 
-      // Log the full receipt for debugging
-      console.log("Create room receipt:", JSON.stringify(receipt, (key, value) =>
-        typeof value === 'bigint' ? value.toString() : value
-      , 2));
-
-      // Extract room_id from receipt
-      // GenLayer SDK returns the execution result in the receipt
-      let roomId = "";
-      const receiptData = receipt as any;
-
-      // Helper function to extract room_id from various formats
-      const extractRoomId = (value: any): string => {
-        if (!value) return "";
-        if (typeof value === "string") {
-          // Direct string like "room_7"
-          if (value.startsWith("room_")) return value;
-          // Try to parse as JSON
-          try {
-            const parsed = JSON.parse(value);
-            if (typeof parsed === "string" && parsed.startsWith("room_")) return parsed;
-            if (parsed?.room_id) return parsed.room_id;
-          } catch {
-            // Not JSON, return as-is if it looks like a room ID
-          }
-          return value;
+      // Log the full receipt for debugging - use custom replacer for BigInt
+      const safeStringify = (obj: any): string => {
+        try {
+          return JSON.stringify(obj, (key, value) => {
+            if (typeof value === 'bigint') return value.toString();
+            return value;
+          }, 2);
+        } catch {
+          return String(obj);
         }
-        if (typeof value === "object") {
-          if (value.room_id) return value.room_id;
-          if (value.result) return extractRoomId(value.result);
-        }
-        return String(value);
       };
 
-      // Try different possible locations for the return value
-      // The GenLayer SDK may return the result in different fields depending on version
-      const possibleSources = [
-        receiptData.result,
-        receiptData.data?.result,
-        receiptData.decoded_data,
-        receiptData.execution_result,
-        receiptData.return_value,
-        receiptData.output,
-        receiptData.data?.decoded_data,
-        receiptData.data?.execution_result,
-      ];
+      console.log("=== CREATE ROOM RECEIPT DEBUG ===");
+      console.log("Receipt type:", typeof receipt);
+      console.log("Receipt keys:", receipt ? Object.keys(receipt) : "null");
+      console.log("Full receipt:", safeStringify(receipt));
 
-      for (const source of possibleSources) {
-        const extracted = extractRoomId(source);
-        if (extracted && extracted.startsWith("room_")) {
-          roomId = extracted;
-          break;
+      // Deep search function to find room_id pattern anywhere in the object
+      const findRoomId = (obj: any, path: string = ""): string | null => {
+        if (!obj) return null;
+
+        // Check if this value is a room ID string
+        if (typeof obj === "string") {
+          // Direct match: "room_X"
+          if (obj.match(/^room_\d+$/)) {
+            console.log(`Found room ID at ${path}:`, obj);
+            return obj;
+          }
+          // Try parsing as JSON
+          try {
+            const parsed = JSON.parse(obj);
+            const result = findRoomId(parsed, `${path}[parsed]`);
+            if (result) return result;
+          } catch {
+            // Not JSON, check if it contains room_X pattern
+            const match = obj.match(/room_\d+/);
+            if (match) {
+              console.log(`Found room ID in string at ${path}:`, match[0]);
+              return match[0];
+            }
+          }
+          return null;
         }
-      }
 
-      // If we still don't have a valid room ID, check if there's any string starting with "room_"
-      // in the stringified receipt
-      if (!roomId || !roomId.startsWith("room_")) {
-        const receiptStr = JSON.stringify(receipt);
-        const match = receiptStr.match(/"(room_\d+)"/);
+        // Check arrays
+        if (Array.isArray(obj)) {
+          for (let i = 0; i < obj.length; i++) {
+            const result = findRoomId(obj[i], `${path}[${i}]`);
+            if (result) return result;
+          }
+          return null;
+        }
+
+        // Check objects
+        if (typeof obj === "object") {
+          // Priority keys to check first
+          const priorityKeys = [
+            "result", "data", "decoded_data", "execution_result",
+            "return_value", "output", "value", "room_id", "roomId"
+          ];
+
+          // Check priority keys first
+          for (const key of priorityKeys) {
+            if (key in obj) {
+              const result = findRoomId(obj[key], `${path}.${key}`);
+              if (result) return result;
+            }
+          }
+
+          // Check all other keys
+          for (const key of Object.keys(obj)) {
+            if (!priorityKeys.includes(key)) {
+              const result = findRoomId(obj[key], `${path}.${key}`);
+              if (result) return result;
+            }
+          }
+        }
+
+        return null;
+      };
+
+      // Try to find room ID in the receipt
+      let roomId = findRoomId(receipt, "receipt");
+
+      // If not found in receipt structure, try the stringified version as last resort
+      if (!roomId) {
+        const receiptStr = safeStringify(receipt);
+        const match = receiptStr.match(/room_\d+/);
         if (match) {
-          roomId = match[1];
-          console.log("Extracted room ID from receipt string:", roomId);
+          roomId = match[0];
+          console.log("Found room ID via string search:", roomId);
         }
       }
 
-      // Validate room ID format (should be like "room_7")
-      if (!roomId || !roomId.startsWith("room_")) {
-        console.error("Could not extract valid room ID from receipt:", receipt);
-        throw new Error("Failed to get room ID from contract response");
+      // If still no room ID, check if the txHash itself can help us get the result
+      if (!roomId) {
+        console.warn("Could not find room ID in receipt, attempting fallback...");
+
+        // Try to get transaction result directly if available
+        try {
+          const txResult = await (this.client as any).getTransactionResult?.({ hash: txHash });
+          if (txResult) {
+            console.log("Transaction result:", safeStringify(txResult));
+            const fallbackId = findRoomId(txResult, "txResult");
+            if (fallbackId) {
+              roomId = fallbackId;
+            }
+          }
+        } catch (e) {
+          console.log("getTransactionResult not available or failed:", e);
+        }
       }
 
-      console.log("Final room ID:", roomId);
+      // Final validation - be more lenient
+      if (!roomId) {
+        console.error("=== ROOM ID EXTRACTION FAILED ===");
+        console.error("Receipt structure:", safeStringify(receipt));
+        throw new Error(
+          "Could not extract room ID from transaction. " +
+          "Please check the console for the receipt structure."
+        );
+      }
+
+      console.log("=== ROOM ID EXTRACTED SUCCESSFULLY ===");
+      console.log("Room ID:", roomId);
 
       return {
         receipt: receipt as TransactionReceipt,
         roomId: roomId
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating room:", error);
-      throw new Error("Failed to create room");
+      throw new Error(error?.message || "Failed to create room");
     }
   }
 

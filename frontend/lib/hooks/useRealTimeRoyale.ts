@@ -9,6 +9,26 @@ import { success, error, configError } from "../utils/toast";
 import type { Room, LeaderboardEntry } from "../contracts/types";
 
 /**
+ * Helper function to ensure room ID has the "room_" prefix
+ * Contract expects format: "room_X" (e.g., "room_8", "room_9")
+ * @param id - Room ID that may or may not have the prefix
+ * @returns Properly formatted room ID with "room_" prefix
+ */
+export function formatRoomId(id: string | null | undefined): string {
+  if (!id) return "";
+  const trimmed = id.trim();
+  if (!trimmed) return "";
+
+  // Already has the correct prefix
+  if (trimmed.startsWith("room_")) {
+    return trimmed;
+  }
+
+  // Just a number - add the prefix
+  return `room_${trimmed}`;
+}
+
+/**
  * Hook to get the RealTimeRoyale contract instance
  */
 export function useRealTimeRoyaleContract(): RealTimeRoyale | null {
@@ -36,23 +56,25 @@ export function useRealTimeRoyaleContract(): RealTimeRoyale | null {
  */
 export function useRoom(roomId: string | null) {
   const contract = useRealTimeRoyaleContract();
+  // Ensure room ID has proper format
+  const formattedRoomId = formatRoomId(roomId);
 
   return useQuery<Room | null, Error>({
-    queryKey: ["room", roomId],
+    queryKey: ["room", formattedRoomId],
     queryFn: async () => {
-      if (!contract || !roomId) {
-        console.log("useRoom: No contract or roomId", { contract: !!contract, roomId });
+      if (!contract || !formattedRoomId) {
+        console.log("useRoom: No contract or roomId", { contract: !!contract, roomId, formattedRoomId });
         return null;
       }
-      console.log("useRoom: Fetching room with ID:", roomId);
-      const room = await contract.getRoom(roomId);
+      console.log("useRoom: Fetching room with ID:", formattedRoomId);
+      const room = await contract.getRoom(formattedRoomId);
       console.log("useRoom: Got room data:", room);
       return room;
     },
     refetchOnWindowFocus: true,
     refetchInterval: 3000, // Poll every 3 seconds for real-time updates
     staleTime: 1000,
-    enabled: !!contract && !!roomId,
+    enabled: !!contract && !!formattedRoomId,
   });
 }
 
@@ -161,11 +183,13 @@ export function useJoinRoom() {
       if (!address) {
         throw new Error("Wallet not connected.");
       }
-      console.log("useJoinRoom: Joining room:", roomId);
+      // Ensure room ID has proper format
+      const formattedRoomId = formatRoomId(roomId);
+      console.log("useJoinRoom: Joining room:", formattedRoomId, "(input was:", roomId, ")");
       setIsJoining(true);
-      const result = await contract.joinRoom(roomId);
+      const result = await contract.joinRoom(formattedRoomId);
       console.log("useJoinRoom: Join result:", result);
-      return { receipt: result, roomId };
+      return { receipt: result, roomId: formattedRoomId };
     },
     onSuccess: (data) => {
       console.log("useJoinRoom: Successfully joined room:", data.roomId);
@@ -209,11 +233,14 @@ export function useStartGame() {
       if (!address) {
         throw new Error("Wallet not connected.");
       }
+      // Ensure room ID has proper format
+      const formattedRoomId = formatRoomId(roomId);
       setIsStarting(true);
-      return contract.startGame(roomId);
+      const result = await contract.startGame(formattedRoomId);
+      return { result, roomId: formattedRoomId };
     },
-    onSuccess: (_, roomId) => {
-      queryClient.invalidateQueries({ queryKey: ["room", roomId] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["room", data.roomId] });
       setIsStarting(false);
       success("Game started!", {
         description: "Get ready to play!",
@@ -253,11 +280,14 @@ export function useStartRound() {
       if (!address) {
         throw new Error("Wallet not connected.");
       }
+      // Ensure room ID has proper format
+      const formattedRoomId = formatRoomId(roomId);
       setIsStartingRound(true);
-      return contract.startRound(roomId);
+      const result = await contract.startRound(formattedRoomId);
+      return { result, roomId: formattedRoomId };
     },
-    onSuccess: (_, roomId) => {
-      queryClient.invalidateQueries({ queryKey: ["room", roomId] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["room", data.roomId] });
       setIsStartingRound(false);
       success("Round started!", {
         description: "Make your guess!",
@@ -297,11 +327,14 @@ export function useSubmitAnswer() {
       if (!address) {
         throw new Error("Wallet not connected.");
       }
+      // Ensure room ID has proper format
+      const formattedRoomId = formatRoomId(roomId);
       setIsSubmitting(true);
-      return contract.submitAnswer(roomId, answer);
+      const result = await contract.submitAnswer(formattedRoomId, answer);
+      return { result, roomId: formattedRoomId };
     },
-    onSuccess: (_, { roomId }) => {
-      queryClient.invalidateQueries({ queryKey: ["room", roomId] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["room", data.roomId] });
       setIsSubmitting(false);
       success("Answer submitted!", {
         description: "Waiting for other players...",
@@ -341,11 +374,14 @@ export function useJudgeRound() {
       if (!address) {
         throw new Error("Wallet not connected.");
       }
+      // Ensure room ID has proper format
+      const formattedRoomId = formatRoomId(roomId);
       setIsJudging(true);
-      return contract.judgeRound(roomId);
+      const result = await contract.judgeRound(formattedRoomId);
+      return { result, roomId: formattedRoomId };
     },
-    onSuccess: (_, roomId) => {
-      queryClient.invalidateQueries({ queryKey: ["room", roomId] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["room", data.roomId] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["playerXP"] });
       setIsJudging(false);
@@ -375,7 +411,9 @@ export function useJudgeRound() {
  */
 export function useGameState(roomId: string | null) {
   const { address } = useWallet();
-  const { data: room, isLoading: isLoadingRoom, refetch: refetchRoom } = useRoom(roomId);
+  // formatRoomId is already called inside useRoom, but we need the formatted ID for consistency
+  const formattedRoomId = formatRoomId(roomId);
+  const { data: room, isLoading: isLoadingRoom, refetch: refetchRoom } = useRoom(formattedRoomId);
 
   const isHost = useMemo(() => {
     if (!room || !address) return false;
